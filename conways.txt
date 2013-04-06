@@ -1,0 +1,220 @@
+JSR restartpixelpointer
+initloopstart:
+LDA $fe ; Load random number into register A
+CMP #$30 ; The higher this number, the more life there is
+BCS loadblack ; White being life
+
+;loadwhite:
+LDA #$01
+JMP storecolor
+
+loadblack:
+LDA #$00
+JMP storecolor
+
+storecolor:
+LDY #0
+STA ($00),Y  ;Store color in referred address
+
+INC $00 ; Move to next pixel
+BNE initloopstart ; If zero flag set, continue
+
+INC $01 ; increment most significant byte
+LDA #$06
+CMP $01 ;If this is equal, we're out of bounds
+BNE  initloopstart
+
+; Initialisation ends here
+
+JSR restartpixelpointers
+
+generatepixels:
+JSR copycurrentpixellocation
+JSR generatenextstep
+INC $00 ; Move to next pixel
+BNE generatepixels ; If zero flag set, continue
+
+INC $01 ; increment most significant byte
+LDA #$06
+CMP $01 ;If this is equal, we're out of bounds
+BNE  generatepixels
+JMP redisplay
+
+generatenextstep:
+JSR checkpixel
+
+CPX #$04
+BCC checkovercrowd
+JMP clearpixel
+
+checkovercrowd:
+CPX #$02
+BEQ keepalive
+BCS checkequal3
+JMP clearpixel
+
+keepalive: ;if alive, keep alive
+LDY #0
+LDA ($00),Y
+BEQ clearpixel
+JMP setpixel
+
+checkequal3: ;if we have 3 neighbours, we're alive
+CPX #$03
+BEQ setpixel
+JMP clearpixel
+
+clearpixel:
+LDA $01
+ORA #$F0
+STA $01
+LDA #$00
+STA ($00), Y
+LDA $01
+EOR #$F0
+STA $01
+LDA #$00
+RTS
+
+setpixel:
+LDA $01
+ORA #$F0
+STA $01
+LDA #$01
+STA ($00), Y
+LDA $01
+EOR #$F0
+STA $01
+LDA #$00
+RTS
+
+
+checkpixel:
+LDX #0
+JSR left
+JSR up
+JSR right
+JSR right
+JSR down
+JSR down
+JSR left
+JSR left
+RTS
+
+
+left:
+DEC $02
+LDA $02
+AND #$1f
+CMP #$1f
+BNE checkforpixel
+; Need to add #$10 to get in the right row
+LDA $02
+CLC
+ADC #$20
+STA $02
+JMP checkforpixel
+
+up:
+LDA $02
+SEC
+SBC #$20
+STA $02
+BCS checkforpixel
+
+DEC $03
+LDA #$01
+CMP $03
+BNE checkforpixel
+; If significant byte is 3, we need to wraparound
+LDA #$05
+STA $03
+JMP checkforpixel
+
+right:
+INC $02
+LDA #$1f
+BIT $02
+BNE checkforpixel
+; Need to add #$10 to get in the right row
+LDA $02
+SEC
+SBC #$20
+STA $02
+JMP checkforpixel
+
+down:
+LDA $02
+CLC
+ADC #$20
+STA $02
+BCC checkforpixel
+
+INC $03
+LDA #$06
+CMP $03
+BNE checkforpixel
+; If significant byte is 6, we need to wraparound
+LDA #$02
+STA $03
+JMP checkforpixel
+;-------------
+checkforpixel:
+LDY #0
+LDA ($02),Y
+BNE incrementandreturn ; If #$01, increment life counter
+RTS
+
+incrementandreturn:
+INX
+RTS
+
+;SUBROUTINES
+restartpixelpointers:
+LDX #$02
+STX $01
+LDX #$00
+STX $00
+RTS
+
+
+redisplay:
+JSR restartpixelpointers
+
+LDA $00
+STA $02
+LDA $01
+ORA #$F0
+STA $03
+
+transferpixel:
+LDY #0
+LDA ($02),Y
+STA ($00),Y
+
+INC $02
+INC $00 ; Move to next pixel
+BNE transferpixel ; If zero flag set, continue
+
+INC $03
+INC $01 ; increment most significant byte
+LDA #$06
+CMP $01 ;If this is equal, we're out of bounds
+BNE transferpixel
+JSR restartpixelpointer
+JMP generatepixels
+
+copycurrentpixellocation:
+LDA $00
+STA $02
+LDA $01
+STA $03
+RTS
+
+restartpixelpointer:
+; $00-$01 -> Pointer to current pixel on display
+LDX #$02
+STX $01
+LDX #$00
+STX $00;X stores least significant pixel address byte
+RTS

@@ -1,0 +1,3 @@
+Just an implementation of Conway's Game of Life in 6502 Assembly language. It differs to the code listed at rosettacode.org/wiki/Conway's_Game_of_Life, since it's on a toroidal field (i.e. the top and bottom wrap around, and so does the left and right of the field). It's also a lot slower. 
+
+I've been meaning to make it more efficient, and also refactor the code a bit. But I can't be bothered. Just putting it here for persistence sake.
